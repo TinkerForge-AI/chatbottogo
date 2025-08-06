@@ -139,8 +139,9 @@ emitFiles(selectedContents.value);
 }
 .file-list-container {
   width: 100%;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   margin-bottom: 0.5rem;
+  min-height: 0;
 }
 .file-list {
   background: #252526;
@@ -149,7 +150,8 @@ emitFiles(selectedContents.value);
   padding: 0.5rem 0.5rem 0.5rem 0.5rem;
   font-family: var(--bs-font-sans-serif);
   width: 100%;
-  max-height: 120px;
+  min-height: 0;
+  max-height: none;
   overflow-y: auto;
   box-sizing: border-box;
 }

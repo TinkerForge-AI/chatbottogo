@@ -213,12 +213,12 @@ html, body, #app {
   justify-content: center;
   flex: 1 1 0;
   min-width: 320px;
-  max-width: 700px;
+  max-width: 80vw;
 }
 .chat-ui.redesigned-chat-ui {
   width: 100%;
   min-width: 320px;
-  max-width: 700px;
+  max-width: 80vw;
   height: 100%;
   max-height: 100vh;
   margin: 0;
@@ -246,7 +246,7 @@ html, body, #app {
   justify-content: flex-start;
   flex: 0 1 340px;
   min-width: 260px;
-  max-width: 360px;
+  max-width: 80vw;
   height: 100%;
   margin-left: 1.5rem;
   margin-top: 0;

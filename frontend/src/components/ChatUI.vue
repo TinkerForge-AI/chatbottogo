@@ -49,15 +49,13 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, nextTick, watch, computed } from 'vue';
-import ContextProvider from './ContextProvider.vue';
-import hljs from 'highlight.js';
-import 'highlight.js/styles/github.css';
+ import { ref, onMounted, watch } from 'vue';
+import { useCodeHighlight } from '../composables/useCodeHighlight';
 
-interface Message {
+ interface Message {
   text: string;
   role: 'user' | 'bot';
-}
+ }
 
 const input = ref('');
 const messages = ref<Message[]>([]);
@@ -79,60 +77,13 @@ function onContextFilesUpdate(files: Array<{ name: string; content: string }>) {
   console.log('DEBUG onContextFilesUpdate:', JSON.stringify(contextFiles.value));
 }
 
-// Debug: watch contextFiles for changes
-watch(contextFiles.value, (val) => {
-  console.log('DEBUG contextFiles changed:', JSON.stringify(val));
-  console.log(contextFiles.value.length > 0 ? 'Context files selected' : 'No context files selected');
-});
 
-function addCopyButtonsToCodeBlocks() {
-  nextTick(() => {
-    document.querySelectorAll('.chat-history pre code').forEach((block) => {
-      const pre = block.parentElement;
-      if (!pre) return;
-      // Avoid adding multiple buttons
-      if (pre.querySelector('.copy-btn')) return;
-      const btn = document.createElement('button');
-      btn.className = 'copy-btn btn btn-sm btn-light position-absolute top-0 end-0 m-2';
-      btn.textContent = 'Copy';
-      btn.style.zIndex = '2';
-      btn.setAttribute('type', 'button');
-      btn.onclick = async (e) => {
-        e.stopPropagation();
-        try {
-          await navigator.clipboard.writeText(block.textContent || '');
-          btn.textContent = 'Copied!';
-          btn.setAttribute('data-copied', 'true');
-          setTimeout(() => {
-            btn.textContent = 'Copy';
-            btn.removeAttribute('data-copied');
-          }, 1200);
-        } catch {
-          btn.textContent = 'Error';
-        }
-      };
-      pre.style.position = 'relative';
-      pre.appendChild(btn);
-    });
-  });
-}
+// Use composable for code highlighting and copy buttons
+const { highlightAllCode } = useCodeHighlight();
 
-function highlightAllCode() {
-  nextTick(() => {
-    document.querySelectorAll('pre code').forEach((block) => {
-      hljs.highlightElement(block as HTMLElement);
-    });
-    addCopyButtonsToCodeBlocks();
-  });
-}
+onMounted(highlightAllCode);
 
-onMounted(() => {
-  highlightAllCode();
-});
-
-watch(messages, () => {
-  highlightAllCode();
-});
+watch(messages, highlightAllCode);
 
 async function sendMessage() {
   if (!input.value.trim()) return;

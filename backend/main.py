@@ -214,6 +214,9 @@ async def post_message(request: StarletteRequest, body: dict = Body(...)):
     query_type = body.get("query_type", "qa")
     if not user_id or not text:
         return JSONResponse(status_code=400, content={"detail": "user_id and text required"})
+    # If this is the first message in a new conversation, clear rate-limit history
+    if convos.find_one({"user_id": user_id}) is None:
+        user_message_times[user_id].clear()
     sanitized = sanitize_input(text)
     if contains_profanity(sanitized):
         logger.warning(f"Profanity detected from user {user_id}")
@@ -228,6 +231,8 @@ async def post_message(request: StarletteRequest, body: dict = Body(...)):
         logger.warning(f"Rate limit exceeded for user {user_id}")
         return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded (10 messages/min)"})
     max_tokens = 200
+    # Compute original token count for echo logic
+    original_tokens = len(sanitized.split())
     sanitized_trimmed = trim_to_max_tokens(sanitized, max_tokens)
     prompt = build_prompt(sanitized_trimmed, query_type)
     while not validate_length(prompt, 500) and len(sanitized_trimmed.split()) > 1:
@@ -237,7 +242,9 @@ async def post_message(request: StarletteRequest, body: dict = Body(...)):
         logger.warning(f"Message too long after framing/context for user {user_id}")
         return JSONResponse(status_code=400, content={"detail": "Message too long (max 500) after framing/context"})
     now = datetime.utcnow().isoformat()
-    msg = {"text": prompt, "timestamp": now, "query_type": query_type}
+    # Store sanitized and trimmed user text for conversation history
+    msg_to_store = sanitized_trimmed
+    msg = {"text": msg_to_store, "timestamp": now, "query_type": query_type}
     try:
         convo = convos.find_one({"user_id": user_id})
         if convo:
@@ -251,15 +258,17 @@ async def post_message(request: StarletteRequest, body: dict = Body(...)):
     # Call the LLM using GoogleAIProvider
     try:
         from backend.providers.googleai import GoogleAIProvider
+        import markdown as md
         # You may want to cache this instance in production
         google_llm = GoogleAIProvider()
         llm_response = google_llm.generate(prompt)
+        # Convert markdown to HTML for frontend rendering
+        llm_html = md.markdown(llm_response, extensions=["extra", "codehilite", "nl2br"])
     except Exception as e:
         logger.error(f"LLM call failed: {e}")
-        llm_response = "[Error: LLM unavailable]"
+        llm_html = "[Error: LLM unavailable]"
 
-    return {"response": llm_response, "query_type": query_type}
-    return {"echo": prompt, "query_type": query_type}
+    return {"response": llm_html, "query_type": query_type}
 
 @app.get("/api/chat/history")
 def get_history(user_id: str):

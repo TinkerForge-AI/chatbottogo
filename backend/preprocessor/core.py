@@ -39,8 +39,24 @@ def contains_prompt_injection(text: str) -> bool:
     return False
 
 def contains_sql_injection(text: str) -> bool:
+    """
+    Performs a basic check for common SQL injection patterns in the given text.
+
+    Note: This is NOT a comprehensive or foolproof solution.
+    True protection against SQL injection is achieved by:
+    1.  **Always using parameterized queries/prepared statements.**
+    2.  Validating and sanitizing all user inputs thoroughly.
+    3.  Implementing a Web Application Firewall (WAF).
+
+    This function is for illustrative purposes as a *pre-check*.
+    """
+    if not isinstance(text, str) or not text:
+        return False
+    # Lowercase for case-insensitive matching
+    text_lower = text.lower()
+    # Use configured SQL injection regex patterns
     for pat in SQL_PATTERNS:
-        if re.search(pat, text, re.IGNORECASE):
+        if re.search(pat, text_lower):
             return True
     return False
 

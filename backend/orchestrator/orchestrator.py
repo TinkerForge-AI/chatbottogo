@@ -28,33 +28,29 @@ class LLMOrchestrator:
             raise ValueError(f"Unknown provider: {name}")
         return PROVIDER_REGISTRY[name]()
 
-    def generate(self, prompt: str, stream: bool = False, user_id: str = None, **kwargs):
+    def generate(self, prompt: str, **kwargs) -> str:
+        """
+        Generate a response from the first successful provider. Retries on failures.
+        """
         last_exc = None
         for provider in self.providers:
             for attempt in range(self.max_retries):
                 try:
-                    if stream:
-                        response = provider.generate(prompt, stream=True, **kwargs)
-                        # Optionally track usage per chunk
-                        if self.usage_db and user_id:
-                            for chunk in response:
-                                self._track_usage(user_id, provider, prompt, chunk)
-                                yield chunk
-                            return
-                        else:
-                            yield from response
-                            return
-                    else:
-                        result = provider.generate(prompt, **kwargs)
-                        if self.usage_db and user_id:
-                            self._track_usage(user_id, provider, prompt, result)
-                        return result
+                    result = provider.generate(prompt, **kwargs)
+                    if self.usage_db and 'user_id' in kwargs:
+                        self._track_usage(kwargs['user_id'], provider, prompt, result)
+                    return result
                 except Exception as exc:
                     last_exc = exc
                     sleep_time = self.backoff_base * (2 ** attempt)
-                    logging.warning(f"Provider {provider.name()} failed (attempt {attempt+1}): {exc}. Retrying in {sleep_time:.2f}s...")
+                    logging.warning(
+                        f"Provider {provider.name()} failed (attempt {attempt+1}): {exc}. "
+                        f"Retrying in {sleep_time:.2f}s..."
+                    )
                     time.sleep(sleep_time)
-            logging.error(f"Provider {provider.name()} failed after {self.max_retries} attempts. Trying next provider...")
+            logging.error(
+                f"Provider {provider.name()} failed after {self.max_retries} attempts. Trying next provider..."
+            )
         raise RuntimeError(f"All providers failed. Last error: {last_exc}")
 
     def _track_usage(self, user_id, provider, prompt, output):
